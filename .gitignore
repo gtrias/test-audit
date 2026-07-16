@@ -1,0 +1,6 @@
+node_modules/
+*.skill
+*.pyc
+__pycache__/
+*.md.j2
+test-audit-report.md

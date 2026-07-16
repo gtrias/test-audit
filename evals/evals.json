@@ -1,0 +1,23 @@
+{
+  "skill_name": "test-audit",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I just inherited this codebase and have no idea if the tests are any good. Can you audit the test suite and give me a full report?",
+      "expected_output": "Detects test runner, runs suite, produces structured audit report with health score, identifies quality issues",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "Our tests take forever to run and some of them are flaky. Can you do a test maintenance audit?",
+      "expected_output": "Identifies slow suites, flags potential flakiness causes, reports on config and timing issues",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "Before we do a major refactor I want to know how solid our test coverage is. Run a full test audit please.",
+      "expected_output": "Comprehensive audit including test type balance, smell detection, maintainability assessment",
+      "files": []
+    }
+  ]
+}
