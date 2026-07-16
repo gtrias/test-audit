@@ -85,6 +85,23 @@ Run the full test suite using the detected runner's standard command:
 - Total execution time
 - Per-suite timing if the runner reports it
 
+**Capture and categorize stderr warnings**: Test runners emit warnings and errors to stderr that are NOT test failures (the tests still pass). These are critical signals:
+
+1. **Scrape stderr** from the full test output. Extract every unique warning/error pattern.
+2. **Categorize each pattern**:
+   - `act()` warnings: `"not wrapped in act(...)"` — React state updates leaking past test boundaries. Count total instances AND per-component breakdown. Flag as flakiness risk.
+   - `Not implemented` errors: jsdom/Puppeteer limitations (e.g. `"navigation (except hash changes)"`). Count instances, note the environment limitation.
+   - Error boundary catches: Components throwing inside error boundaries. Some are expected (testing error states), some reveal real production defects.
+   - Logged errors from production code: `console.error`, framework error handlers. Trace each stack back to source — these may reveal real bugs the test doesn't catch.
+   - Deprecation warnings: React lifecycle, API deprecations.
+3. **Trace runtime errors to production code**: For each error in test stderr that originates from an application module (not a test helper), check whether it's:
+   - Expected behavior (testing an error state → Info)
+   - A code defect exposed by the test (the test passes despite the error → Warning)
+   - Noise from mock incompleteness (expected in test env → Info)
+4. **Include warning summary in the report**: A brief line like "stderr: X warnings across Y categories" in the Execution Health section.
+
+If the test runner doesn't separate stdout/stderr cleanly, use `grep -E 'stderr|warn|error|not wrapped in act|not implemented'` on the captured output.
+
 **If tests require env vars, database connections, or API keys** the skill cannot provide: note this limitation and continue with static analysis only. Do not fabricate credentials or skip config.
 
 **If tests fail**: report the failure summary (failed suite names, error messages for the first 3 failures) but continue with the audit. The audit covers structure and quality even when the code is broken. The health score accounts for failures.
@@ -246,6 +263,28 @@ Same setup logic repeated across multiple test files without helper extraction.
 
 **Severity**: Warning
 
+
+#### `act()` Warnings (React-specific)
+State updates leaking past test boundaries: `"not wrapped in act(...)"` warnings in test output.
+
+**Detection**: Grep the full test output for `"not wrapped in act"`. Count total instances and group by component name (`An update to COMPONENT inside a test`). Report the top-3 most-warned components.
+
+**Why it matters**: `act()` warnings are the #1 predictor of flaky test suites. Each warning means a component re-render, timeout, or effect fires *after* the test assertion completes. This creates ordering-dependent failures: test A passes alone but fails when run after test B, because B's async leak pollutes A's environment. Fixing these is the single highest-leverage improvement for test reliability.
+
+**Severity**: Warning (Critical if 100+ instances or any component triggers 30+)
+
+#### Runtime Errors Exposed by Tests
+Errors appearing in test stderr that originate from production code modules, not from test infrastructure.
+
+**Detection**: From the stderr analysis in Phase 2, trace each error stack trace. If the top of the stack is an application file (not a test file, mock, or node_modules), it's a runtime error exposed by the test. Key patterns:
+- `.split()` or other method calls on `undefined`/`null` — unguarded access
+- `"Error creating X object"` logs — caught exceptions in production code that the test doesn't assert on
+- Font/image load failures that aren't part of the test scenario
+- Provider context errors (`"must be used within a XProvider"`) — component rendered outside its required context
+
+**Why it matters**: A test that passes despite a production-code error is silently hiding a defect. The test checks the happy path but the error still fires. In production, the same error may cause a visible crash or undefined UI state. These are regressions waiting to surface.
+
+**Severity**: Warning (Critical if the error would crash the UI or lose user data)
 ---
 
 ## Phase 5: Health Score & Report
@@ -285,6 +324,7 @@ Generate the report using this exact structure and save it as `test-audit-report
 - **Total time**: Xs
 - **Pass rate**: X% (N passed, N failed, N skipped)
 - **Slowest suites**: [top 3 — or "not available" if couldn't run]
+- **stderr warnings**: N warnings across Y categories (N `act()` warnings, N runtime errors from production code)
 
 ## Quality Findings
 
