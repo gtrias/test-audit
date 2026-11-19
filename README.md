@@ -29,6 +29,14 @@ The skill produces two outputs:
 - Python 3 for the infrastructure detection script
 - The project's own test runner dependencies (for execution metrics)
 
+## Development
+
+The detection script has a behavior test suite (stdlib `unittest`, no dependencies):
+
+```
+python3 -m unittest discover -s tests
+```
+
 ## License
 
 MIT
