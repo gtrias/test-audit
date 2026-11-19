@@ -18,6 +18,17 @@ import sys
 from pathlib import Path
 
 
+def _dedupe(paths: list[str]) -> list[str]:
+    """Drop duplicate config paths (glob + explicit list can both match)."""
+    seen = set()
+    unique = []
+    for p in paths:
+        if p not in seen:
+            seen.add(p)
+            unique.append(p)
+    return unique
+
+
 def detect_js_ts_runner(project_dir: Path) -> list[dict]:
     """Detect JavaScript/TypeScript test runners from config files and deps."""
     runners = []
@@ -74,13 +85,13 @@ def detect_js_ts_runner(project_dir: Path) -> list[dict]:
         if dep_key in deps:
             runners.append({
                 "name": info["name"],
-                "config_files": info["config_files"],
+                "config_files": _dedupe(info["config_files"]),
                 "source": "dependencies",
             })
         elif info["config_files"]:
             runners.append({
                 "name": info["name"],
-                "config_files": info["config_files"],
+                "config_files": _dedupe(info["config_files"]),
                 "source": "config_file",
             })
 
